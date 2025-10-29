@@ -1,0 +1,42 @@
+syntax = "proto3";
+package exec;
+
+message ExecuteRequestChunk {
+    oneof request_chunk {
+        Command command = 1; // 第一个 chunk 必须发送 Command
+        StdinChunk stdin_chunk = 2;
+        KillCommand kill = 3; // 杀死进程
+    }
+}
+
+message KillCommand {}
+
+message Command {
+    string executable = 1;
+    repeated string args = 2;
+    string current_dir = 3;
+}
+
+message ProgramOutput {
+    oneof payload {
+        StdoutChunk stdout_chunk = 1;
+        StderrChunk stderr_chunk = 2;
+        int32 ExitStatus = 3;
+    };
+}
+
+message StdoutChunk {
+    bytes data = 1;
+}
+
+message StderrChunk {
+    bytes data = 1;
+}
+
+message StdinChunk {
+    bytes data = 1;
+}
+
+service Execute {
+    rpc execute(stream ExecuteRequestChunk) returns (stream ProgramOutput);
+}
