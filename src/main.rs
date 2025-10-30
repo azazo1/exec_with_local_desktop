@@ -1,4 +1,4 @@
-use std::{process::exit, time::Duration};
+use std::process::exit;
 
 use clap::Parser;
 use exec_with_local_desktop::{

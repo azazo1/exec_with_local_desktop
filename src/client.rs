@@ -1,5 +1,4 @@
 use std::env;
-use std::time::Duration;
 
 use crate::Error;
 use crate::args::ClientArgs;
@@ -154,6 +153,7 @@ impl ExecutorClient {
                                 .inspect(|_| warn!("failed to write stderr: {:?}", e));
                         })
                         .ok();
+                    stderr.flush().await.ok();
                 }
                 Payload::StdoutChunk(chunk) => {
                     stdout
@@ -165,10 +165,11 @@ impl ExecutorClient {
                                 .inspect(|_| warn!("failed to write stdout: {:?}", e));
                         })
                         .ok();
+                    stdout.flush().await.ok();
                 }
             }
         }
-        todo!()
+        Ok(None)
     }
 
     /// 流式执行程序, 返回程序的退出码, 当启动的程序 leak 了则可能没有返回码.

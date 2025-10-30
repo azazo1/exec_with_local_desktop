@@ -5,11 +5,12 @@ use tonic::Status;
 
 use crate::exec::ProgramOutput;
 
+pub mod args;
 pub mod client;
 pub mod server;
-pub mod args;
 
 pub mod exec {
+    #![allow(non_camel_case_types)]
     tonic::include_proto!("exec");
 }
 
