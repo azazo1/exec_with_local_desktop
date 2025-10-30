@@ -106,6 +106,10 @@ impl ProgramCaller {
             };
             match request_chunk {
                 RequestChunk::StdinChunk(stdin_chunk) => {
+                    if stdin_chunk.data.is_empty() {
+                        debug!("stdin EOF");
+                        break;
+                    }
                     match stdin.write_all(&stdin_chunk.data).await {
                         Ok(()) => (),
                         Err(e) => {

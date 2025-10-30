@@ -54,6 +54,7 @@ fn no_leak() {
         });
         rt.shutdown_background();
     });
+    // client
     thread::sleep(Duration::from_secs(1)); // 等待服务器先启动.
     let c_join = thread::spawn(|| {
         use std::{fs, time::Instant};

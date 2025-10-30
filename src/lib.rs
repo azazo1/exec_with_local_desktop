@@ -7,6 +7,7 @@ use crate::exec::ProgramOutput;
 
 pub mod client;
 pub mod server;
+pub mod args;
 
 pub mod exec {
     tonic::include_proto!("exec");

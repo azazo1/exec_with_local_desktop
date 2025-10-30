@@ -1,27 +1,16 @@
-#![warn(clippy::all, clippy::pedantic)]
-use clap::Parser;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::Streaming;
-use tonic::{Request, Response, Status, transport::Server};
-use tracing::Level;
+use tonic::transport::Server;
+use tonic::{Request, Response, Status};
 
+use crate::Error;
+use crate::SendStatus as _;
+use crate::args::ServerArgs;
 use crate::exec::execute_server::{Execute, ExecuteServer};
 use crate::exec::{ExecuteRequestChunk, ProgramOutput};
 use crate::server::executor::ProgramCaller;
-use crate::{DEFAULT_PORT, SendStatus as _};
 
 mod executor;
-
-#[derive(clap::Parser)]
-pub struct Args {
-    #[clap(
-        short = 'b',
-        long = "bind",
-        help = "Address the server bind to, recommend setting loopback address for safety.",
-        default_value_t = format!("[::1]:{DEFAULT_PORT}")
-    )]
-    bind_address: String,
-}
 
 pub struct Executor;
 
@@ -45,4 +34,20 @@ impl Execute for Executor {
         });
         Ok(Response::new(ReceiverStream::new(rx)))
     }
+}
+
+pub async fn server_main(args: ServerArgs) -> Result<(), Error> {
+    if cfg!(debug_assertions) {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .init();
+    } else {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .init();
+    }
+    Ok(Server::builder()
+        .add_service(ExecuteServer::new(Executor))
+        .serve(args.bind_address)
+        .await?)
 }
