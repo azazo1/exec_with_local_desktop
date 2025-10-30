@@ -1,3 +1,4 @@
+use std::env;
 use std::time::Duration;
 
 use crate::Error;
@@ -212,7 +213,12 @@ pub async fn client_main(args: ClientArgs) -> Result<Option<i32>, Error> {
         .execute_stream(
             ExecuteOptions::builder()
                 .executable(args.executable)
-                .current_dir(args.current_dir)
+                .current_dir(Some(args.current_dir.unwrap_or_else(|| {
+                    env::current_dir()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .into()
+                })))
                 .leak(args.leak)
                 .args(args.args)
                 .build(),

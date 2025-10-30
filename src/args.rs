@@ -27,7 +27,7 @@ pub struct ClientArgs {
     #[clap(
         short = 'd',
         long = "current-dir",
-        help = "the working directory of executable, default: where the executable is."
+        help = "the working directory of executable, default: where you execute the client."
     )]
     pub current_dir: Option<String>,
     #[clap(index = 2, help = "the executable args")]
