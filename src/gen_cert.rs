@@ -67,8 +67,8 @@ impl CertGenerator {
         server_params.serial_number = Some(SerialNumber::from(2));
         server_params.subject_alt_names = [
             SanType::DnsName("localhost".parse().unwrap()),
-            // SanType::IpAddress(IpAddr::V4("127.0.0.1".parse().unwrap())),
-            // SanType::IpAddress(IpAddr::V6("::1".parse().unwrap())),
+            SanType::IpAddress(IpAddr::V4("127.0.0.1".parse().unwrap())),
+            SanType::IpAddress(IpAddr::V6("::1".parse().unwrap())),
         ]
         .into();
 
