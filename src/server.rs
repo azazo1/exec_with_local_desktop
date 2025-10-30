@@ -2,8 +2,10 @@ use exec_with_local_desktop::exec::execute_request_chunk::RequestChunk;
 use exec_with_local_desktop::exec::program_output::Payload;
 use exec_with_local_desktop::exec::{StderrChunk, StdoutChunk};
 use std::io::Read;
+use std::os::unix::process::ExitStatusExt;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tokio_stream::StreamExt;
@@ -99,13 +101,18 @@ async fn call_program(
         let mut br = BufReader::new(stderr);
         let mut buf = vec![0u8; 1024];
         while let Ok(read_len) = br.read(&mut buf).await {
-            if tx1.send(Ok(ProgramOutput {
-                payload: Some(Payload::StderrChunk(StderrChunk {
-                    data: buf[..read_len].to_vec(),
-                })),
-            }))
-            .await
-            .is_err() {
+            if read_len == 0 {
+                break;
+            }
+            if tx1
+                .send(Ok(ProgramOutput {
+                    payload: Some(Payload::StderrChunk(StderrChunk {
+                        data: buf[..read_len].to_vec(),
+                    })),
+                }))
+                .await
+                .is_err()
+            {
                 break;
             }
         }
@@ -117,6 +124,9 @@ async fn call_program(
         let mut br = BufReader::new(stdout);
         let mut buf = vec![0u8; 1024];
         while let Ok(read_len) = br.read(&mut buf).await {
+            if read_len == 0 {
+                break;
+            }
             if tx1
                 .send(Ok(ProgramOutput {
                     payload: Some(Payload::StdoutChunk(StdoutChunk {
@@ -132,12 +142,29 @@ async fn call_program(
     });
 
     let mut stdin = child.stdin.take().unwrap();
-    while let Ok(request_chunk) = request.message().await {
+    while let Ok(request_chunk) = tokio::select! {
+       msg = request.message() => msg,
+       _ = tokio::time::sleep(Duration::from_secs_f32(1.0)) => Ok(None),
+    } {
         let Some(ExecuteRequestChunk {
             request_chunk: Some(request_chunk),
         }) = request_chunk
         else {
-            continue;
+            match child.try_wait() {
+                Ok(Some(o)) => {
+                    tx.send(Ok(ProgramOutput {
+                        payload: Some(Payload::ExitStatus(o.code().unwrap_or(-1))),
+                    }))
+                    .await
+                    .ok();
+                    break;
+                }
+                Err(e) => {
+                    tx.send(Err(Status::internal(e.to_string()))).await.ok();
+                    return;
+                }
+                _ => continue,
+            }
         };
         match request_chunk {
             RequestChunk::StdinChunk(stdin_chunk) => {
@@ -158,7 +185,8 @@ async fn call_program(
                         .await
                         .ok();
                     }
-                    Err(e) => {
+                    Err(mut e) => {
+                        e = dbg!(e);
                         tx.send(Err(Status::internal(e.to_string()))).await.ok();
                     }
                 }

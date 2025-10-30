@@ -93,13 +93,17 @@ impl Executor {
 async fn main() {
     let args = Args::parse();
     let mut exc = Executor::connect(args.server_address).await.unwrap();
-    exc.execute(
-        ExecuteOptions::builder()
-            .args(args.args)
-            .current_dir(args.current_dir)
-            .executable(args.executable)
-            .build(),
-    )
-    .await
-    .unwrap();
+    let output = exc
+        .execute(
+            ExecuteOptions::builder()
+                .args(args.args)
+                .current_dir(args.current_dir)
+                .executable(args.executable)
+                .build(),
+        )
+        .await
+        .unwrap();
+    println!("{}", String::from_utf8_lossy(&output.stdout));
+    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+    println!("exited: {}", output.code);
 }
