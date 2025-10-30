@@ -14,7 +14,7 @@ message KillCommand {}
 message Command {
     string executable = 1;
     repeated string args = 2;
-    string current_dir = 3;
+    optional string current_dir = 3;
 }
 
 message ProgramOutput {

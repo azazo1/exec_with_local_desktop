@@ -25,9 +25,10 @@ struct Args {
     #[clap(
         short = 'b',
         long = "bind",
-        help = "Address the server bind to, recommend setting loopback address for safety."
+        help = "Address the server bind to, recommend setting loopback address for safety.",
+        default_value_t = format!("[::1]:{DEFAULT_PORT}")
     )]
-    bind_address: Option<String>,
+    bind_address: String,
 }
 
 struct Executor;
@@ -47,7 +48,12 @@ async fn call_program(
         .ok();
         return;
     };
-    let exec_path = PathBuf::from(command.executable);
+    let Ok(exec_path) = which::which(PathBuf::from(command.executable)) else {
+        tx.send(Err(Status::not_found("executable not found")))
+            .await
+            .ok();
+        return;
+    };
     if exec_path.is_relative() {
         tx.send(Err(Status::invalid_argument(
             "relative executable path is not supported",
@@ -56,9 +62,25 @@ async fn call_program(
         .ok();
         return;
     }
-    let mut child = match Command::new(exec_path)
+    let mut cmd = Command::new(&exec_path);
+    let current_dir = match command.current_dir {
+        Some(it) => it,
+        None => {
+            if let Some(dir) = exec_path.parent() {
+                dir.as_os_str().to_string_lossy().to_string()
+            } else {
+                tx.send(Err(Status::not_found(
+                    "cannot set current dir automatically",
+                )))
+                .await
+                .ok();
+                return;
+            }
+        }
+    };
+    let mut child = match cmd
         .args(command.args)
-        .current_dir(command.current_dir)
+        .current_dir(current_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .stdin(Stdio::piped())
@@ -77,13 +99,15 @@ async fn call_program(
         let mut br = BufReader::new(stderr);
         let mut buf = vec![0u8; 1024];
         while let Ok(read_len) = br.read(&mut buf).await {
-            tx1.send(Ok(ProgramOutput {
+            if tx1.send(Ok(ProgramOutput {
                 payload: Some(Payload::StderrChunk(StderrChunk {
                     data: buf[..read_len].to_vec(),
                 })),
             }))
             .await
-            .ok();
+            .is_err() {
+                break;
+            }
         }
     });
 
@@ -93,13 +117,17 @@ async fn call_program(
         let mut br = BufReader::new(stdout);
         let mut buf = vec![0u8; 1024];
         while let Ok(read_len) = br.read(&mut buf).await {
-            tx1.send(Ok(ProgramOutput {
-                payload: Some(Payload::StdoutChunk(StdoutChunk {
-                    data: buf[..read_len].to_vec(),
-                })),
-            }))
-            .await
-            .ok();
+            if tx1
+                .send(Ok(ProgramOutput {
+                    payload: Some(Payload::StdoutChunk(StdoutChunk {
+                        data: buf[..read_len].to_vec(),
+                    })),
+                }))
+                .await
+                .is_err()
+            {
+                break;
+            }
         }
     });
 
@@ -162,11 +190,7 @@ async fn main() {
     tracing_subscriber::fmt()
         .with_max_level(Level::DEBUG)
         .init();
-    let addr = Args::parse()
-        .bind_address
-        .unwrap_or(format!("[::1]:{DEFAULT_PORT}"))
-        .parse()
-        .unwrap();
+    let addr = Args::parse().bind_address.parse().unwrap();
     Server::builder()
         .add_service(ExecuteServer::new(Executor))
         .serve(addr)
