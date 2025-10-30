@@ -1,6 +1,6 @@
 use std::env;
+use std::path::PathBuf;
 
-use crate::Error;
 use crate::args::ClientArgs;
 use crate::exec::execute_client::ExecuteClient;
 use crate::exec::execute_request_chunk::RequestChunk;
@@ -8,10 +8,12 @@ use crate::exec::program_output::Payload;
 use crate::exec::{
     Command, ExecuteRequestChunk, ProgramOutput, StderrChunk, StdinChunk, StdoutChunk,
 };
+use crate::{CA_CERT, CLIENT_CERT, CLIENT_SECRET, Error, config_dir};
+use tokio::fs;
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _};
 use tokio::sync::mpsc::Sender;
 use tokio::task::JoinHandle;
-use tonic::transport::Channel;
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 use tonic::{Status, Streaming};
 use tracing::{debug, info, warn};
 
@@ -37,9 +39,36 @@ pub struct ExecutorClient {
 }
 
 impl ExecutorClient {
-    pub async fn connect(address: String) -> Result<ExecutorClient, Error> {
+    // pub fn new(client: ExecuteClient<Channel>) -> ExecutorClient {
+    //     ExecutorClient { client }
+    // }
+
+    pub async fn connect_tls(
+        address: String,
+        cert_dir: PathBuf,
+        domain_name: String,
+    ) -> Result<Self, Error> {
+        let ca = Certificate::from_pem(fs::read(cert_dir.join(CA_CERT)).await?);
+        let client_cert = fs::read(cert_dir.join(CLIENT_CERT)).await?;
+        let client_secret = fs::read(cert_dir.join(CLIENT_SECRET)).await?;
+        let tls_config = ClientTlsConfig::new()
+            .ca_certificate(ca)
+            .domain_name(domain_name)
+            .identity(Identity::from_pem(client_cert, client_secret));
+        let chan = Channel::from_shared(address)
+            .map_err(|_| Error::InvalidUri)?
+            .tls_config(tls_config)?
+            .connect()
+            .await?;
+        Ok(Self {
+            client: ExecuteClient::new(chan),
+        })
+    }
+
+    /// 无 tls 连接.
+    pub async fn connect(address: String) -> Result<Self, Error> {
         let client = ExecuteClient::connect(address).await?;
-        Ok(ExecutorClient { client })
+        Ok(Self { client })
     }
 
     pub async fn execute(
@@ -209,7 +238,12 @@ pub async fn client_main(args: ClientArgs) -> Result<Option<i32>, Error> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
-    let mut client = ExecutorClient::connect(args.server_address).await?;
+    let mut client = ExecutorClient::connect_tls(
+        args.server_address,
+        args.cert_dir.unwrap_or(config_dir()?),
+        "localhost".into(),
+    )
+    .await?;
     let result = client
         .execute_stream(
             ExecuteOptions::builder()

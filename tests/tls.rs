@@ -1,11 +1,22 @@
-use std::net::IpAddr;
+use std::{fs, net::IpAddr, thread, time::Duration};
 
-use exec_with_local_desktop::config_dir;
+use exec_with_local_desktop::{
+    CA_CERT, CLIENT_CERT, CLIENT_SECRET, SERVER_CERT, SERVER_SECRET,
+    client::{ExecuteOptions, ExecutorClient},
+    config_dir,
+    exec::{
+        Command, ExecuteRequestChunk, execute_client::ExecuteClient,
+        execute_request_chunk::RequestChunk, execute_server::ExecuteServer,
+    },
+    server::Executor,
+};
 use rcgen::{
-    Certificate, CertificateParams, DistinguishedName, DnType, IsCa, Issuer, KeyPair,
-    KeyUsagePurpose, SanType, SerialNumber,
+    CertificateParams, DistinguishedName, DnType, IsCa, Issuer, KeyPair, KeyUsagePurpose, SanType,
+    SerialNumber,
 };
 use time::OffsetDateTime;
+use tonic::transport::{Channel, Endpoint, Identity, Server, ServerTlsConfig};
+use tracing::{Level, info};
 
 #[test]
 fn rcgen_ca() {
@@ -108,7 +119,84 @@ fn dirs() {
     println!("{:?}", config_dir().unwrap());
 }
 
+fn tls_server(ca: tonic::transport::Certificate) {
+    let addr = "0.0.0.0:23845".parse().unwrap();
+    let config_dir = config_dir().unwrap();
+    let server_cert = fs::read(config_dir.join(SERVER_CERT)).unwrap();
+    let server_secret = fs::read(config_dir.join(SERVER_SECRET)).unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async move {
+        Server::builder()
+            .tls_config(
+                ServerTlsConfig::new()
+                    .client_ca_root(ca)
+                    .identity(Identity::from_pem(server_cert, server_secret)),
+            )
+            .unwrap()
+            .add_service(ExecuteServer::new(Executor))
+            .serve(addr)
+            .await
+            .unwrap();
+    });
+    info!("server ended");
+}
+
+fn tls_client(ca: tonic::transport::Certificate) {
+    let addr = "https://localhost:23845"; // 这里不能够使用 grpc:// 作为 schema, 必须使用 https!!!
+    let config_dir = config_dir().unwrap();
+    let client_cert = fs::read(config_dir.join(CLIENT_CERT)).unwrap();
+    let client_secret = fs::read(config_dir.join(CLIENT_SECRET)).unwrap();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    rt.block_on(async move {
+        let tls_config = tonic::transport::ClientTlsConfig::new()
+            .ca_certificate(ca)
+            .domain_name("localhost")
+            .identity(Identity::from_pem(client_cert, client_secret));
+        let chan = Channel::from_static(addr)
+            .tls_config(tls_config)
+            .unwrap()
+            .connect()
+            .await
+            .unwrap();
+        let mut client = ExecuteClient::new(chan);
+        let rst = client
+            .execute(tokio_stream::once(ExecuteRequestChunk {
+                request_chunk: Some(RequestChunk::Command(Command {
+                    executable: "bash".into(),
+                    args: ["-c".into(), "ls".into()].into(),
+                    current_dir: None,
+                    leak: false,
+                })),
+            }))
+            .await
+            .unwrap();
+        dbg!(rst.into_inner().message().await.unwrap());
+    });
+    info!("client ended");
+}
+
 #[test]
 fn tls_grpc() {
-    // Server::builder().tls_config(ServerTlsConfig::new().client_ca_root())
+    tracing_subscriber::fmt()
+        .with_max_level(Level::DEBUG)
+        .init();
+    use tonic::transport::Certificate;
+    let config_dir = config_dir().unwrap();
+    let ca = Certificate::from_pem(fs::read(config_dir.join(CA_CERT)).unwrap());
+    let ca1 = ca.clone();
+    let s_join = thread::spawn(move || {
+        tls_server(ca1);
+    });
+    thread::sleep(Duration::from_secs(1));
+    let c_join = thread::spawn(move || {
+        tls_client(ca);
+    });
+    c_join.join().unwrap();
+    s_join.join().unwrap();
 }

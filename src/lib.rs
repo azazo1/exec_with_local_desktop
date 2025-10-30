@@ -15,11 +15,11 @@ pub mod exec {
     tonic::include_proto!("exec");
 }
 
-const CA_CERT: &str = "ca_cert.crt";
-const SERVER_CERT: &str = "server_cert.crt";
-const SERVER_SECRET: &str = "server_secret.pem";
-const CLIENT_CERT: &str = "client_cert.crt";
-const CLIENT_SECRET: &str = "client_secret.pem";
+pub const CA_CERT: &str = "ca_cert.crt";
+pub const SERVER_CERT: &str = "server_cert.crt";
+pub const SERVER_SECRET: &str = "server_secret.pem";
+pub const CLIENT_CERT: &str = "client_cert.crt";
+pub const CLIENT_SECRET: &str = "client_secret.pem";
 
 pub const DEFAULT_PORT: u16 = 30521;
 
@@ -33,6 +33,8 @@ pub enum Error {
     TonicStatus(#[from] tonic::Status),
     #[error("{0}")]
     EnvVarError(#[from] env::VarError),
+    #[error("invalid uri")]
+    InvalidUri,
 }
 
 pub trait SendStatus {

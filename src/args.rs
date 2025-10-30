@@ -29,19 +29,25 @@ pub struct ClientArgs {
     #[clap(
         short = 'd',
         long = "current-dir",
-        help = "the working directory of executable, default: where you execute the client."
+        help = "The working directory of executable, default: where you execute the client."
     )]
     pub current_dir: Option<String>,
     #[clap(index = 2, help = "the executable args")]
     pub args: Vec<String>,
-    #[clap(short = 'a', long="address", default_value_t=format!("grpc://[::1]:{DEFAULT_PORT}"))]
+    #[clap(short = 'a', long="address", default_value_t=format!("https://[::1]:{DEFAULT_PORT}"))]
     pub server_address: String,
     #[clap(
         short = 'l',
         long = "leak",
-        help = "leak the client when connection closed."
+        help = "Leak the client when connection closed."
     )]
     pub leak: bool,
+    #[clap(
+        short = 'c',
+        long = "cert",
+        help = "Client and CA cert directory path, default to `rex` under user's home config directory"
+    )]
+    pub cert_dir: Option<PathBuf>,
 }
 
 #[derive(Parser, PartialEq, Eq, Debug)]
@@ -54,6 +60,12 @@ pub struct ServerArgs {
         default_value_t = format!("[::1]:{DEFAULT_PORT}").parse().unwrap()
     )]
     pub bind_address: SocketAddr,
+    #[clap(
+        short = 'c',
+        long = "cert",
+        help = "Server and CA cert directory path, default to `rex` under user's home config directory"
+    )]
+    pub cert_dir: Option<PathBuf>,
 }
 
 #[derive(Parser, PartialEq, Eq, Debug)]
@@ -97,6 +109,7 @@ mod test {
                 current_dir: Some("/usr/bin/".into()),
                 leak: false,
                 server_address: "grpc://nihao.com:5000".into(),
+                cert_dir: None,
             }),
         };
 
@@ -114,6 +127,7 @@ mod test {
                 current_dir: None,
                 leak: false,
                 server_address: format!("grpc://[::1]:{DEFAULT_PORT}"),
+                cert_dir: None,
             }),
         };
         assert_eq!(args, target);
@@ -139,6 +153,7 @@ mod test {
                 current_dir: None,
                 leak: true,
                 server_address: format!("grpc://[::1]:{}", DEFAULT_PORT),
+                cert_dir: None,
             }),
         };
         assert_eq!(args, target);
@@ -155,6 +170,7 @@ mod test {
                 current_dir: None,
                 leak: false,
                 server_address: format!("grpc://[::1]:{}", DEFAULT_PORT),
+                cert_dir: None,
             }),
         };
         assert_eq!(args, target);
@@ -167,6 +183,7 @@ mod test {
         let target = Args {
             command: Subcommands::Server(ServerArgs {
                 bind_address: "[::1]:8080".parse().unwrap(),
+                cert_dir: None,
             }),
         };
         assert_eq!(args, target);
@@ -179,6 +196,7 @@ mod test {
         let target = Args {
             command: Subcommands::Server(ServerArgs {
                 bind_address: format!("[::1]:{}", DEFAULT_PORT).parse().unwrap(),
+                cert_dir: None,
             }),
         };
         assert_eq!(args, target);
