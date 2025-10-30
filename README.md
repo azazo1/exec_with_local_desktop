@@ -4,11 +4,15 @@
 
 这个小工具在 Windows 本地桌面环境运行一个服务端, 然后在 ssh 中执行客户端, 与服务端同步输入输出流, 同时控制程序的启动和关闭.
 
-## 使用方法
+## 安装方法
 
 ```shell
+choco install protoc # 或者其他包管理器安装 protoc/protobuf
+git clone https://github.com/azazo1/exec_with_local_desktop.git && cd exec_with_local_desktop
 cargo install --path .
 ```
+
+## 使用方法
 
 设置开机自启命令, 来启动服务器:
 
@@ -19,5 +23,5 @@ rex s
 在 ssh 中, 运行:
 
 ```shell
-rex c 
+rex c
 ```
