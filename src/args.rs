@@ -19,7 +19,7 @@ pub enum Subcommands {
 }
 
 #[derive(Parser, PartialEq, Eq, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about = "run client", long_about = None)]
 pub struct ClientArgs {
     // todo client shell 子命令
     #[clap(index = 1)]
@@ -43,7 +43,7 @@ pub struct ClientArgs {
 }
 
 #[derive(Parser, PartialEq, Eq, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about = "run server", long_about = None)]
 pub struct ServerArgs {
     #[clap(
         short = 'b',
@@ -56,8 +56,8 @@ pub struct ServerArgs {
 
 #[cfg(test)]
 mod test {
-    use crate::args::{ClientArgs, ServerArgs, Subcommands};
     use crate::DEFAULT_PORT;
+    use crate::args::{ClientArgs, ServerArgs, Subcommands};
 
     use super::Args;
     use clap::Parser as _;
