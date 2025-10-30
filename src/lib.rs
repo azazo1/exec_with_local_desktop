@@ -1,5 +1,13 @@
 use std::io;
 
+use tokio::sync::mpsc::Sender;
+use tonic::Status;
+
+use crate::exec::ProgramOutput;
+
+pub mod client;
+pub mod server;
+
 pub mod exec {
     tonic::include_proto!("exec");
 }
@@ -16,4 +24,21 @@ pub enum Error {
     TonicStatus(#[from] tonic::Status),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub trait SendStatus {
+    type Inner;
+    #[allow(async_fn_in_trait)]
+    async fn send_status(self, tx: Sender<Result<ProgramOutput, Status>>) -> Option<Self::Inner>;
+}
+
+impl<T> SendStatus for Result<T, Status> {
+    type Inner = T;
+    async fn send_status(self, tx: Sender<Result<ProgramOutput, Status>>) -> Option<Self::Inner> {
+        match self {
+            Ok(i) => Some(i),
+            Err(e) => {
+                tx.send(Err(e)).await.ok();
+                None
+            }
+        }
+    }
+}
