@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
 use crate::DEFAULT_PORT;
 use clap::{Parser, Subcommand};
@@ -16,6 +16,8 @@ pub enum Subcommands {
     Client(ClientArgs),
     #[command(alias = "s")]
     Server(ServerArgs),
+    #[command(alias = "g")]
+    GenCert(GenCertArgs), // 生成证书
 }
 
 #[derive(Parser, PartialEq, Eq, Debug)]
@@ -52,6 +54,16 @@ pub struct ServerArgs {
         default_value_t = format!("[::1]:{DEFAULT_PORT}").parse().unwrap()
     )]
     pub bind_address: SocketAddr,
+}
+
+#[derive(Parser, PartialEq, Eq, Debug)]
+pub struct GenCertArgs {
+    #[clap(
+        short = 'o',
+        long = "output",
+        help = "Certificates output directory, default to `rex` under user's home config directory."
+    )]
+    pub output_path: Option<PathBuf>,
 }
 
 #[cfg(test)]

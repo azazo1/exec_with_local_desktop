@@ -4,6 +4,7 @@ use clap::Parser;
 use exec_with_local_desktop::{
     args::{Args, Subcommands},
     client::client_main,
+    gen_cert::gen_cert_main,
     server::server_main,
 };
 
@@ -23,5 +24,6 @@ fn main() {
             }
         }
         Subcommands::Server(args) => rt.block_on(server_main(args)).unwrap(),
+        Subcommands::GenCert(args) => gen_cert_main(args),
     }
 }
