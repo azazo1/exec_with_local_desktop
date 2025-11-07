@@ -95,7 +95,7 @@ mod test {
             "-d",
             "/usr/bin/",
             "-a",
-            "grpc://nihao.com:5000",
+            "https://nihao.com:5000",
             "--",
             "-c",
             "sleep 10",
@@ -108,7 +108,7 @@ mod test {
                 args: ["-c".into(), "sleep 10".into()].into(),
                 current_dir: Some("/usr/bin/".into()),
                 leak: false,
-                server_address: "grpc://nihao.com:5000".into(),
+                server_address: "https://nihao.com:5000".into(),
                 cert_dir: None,
             }),
         };
@@ -126,7 +126,7 @@ mod test {
                 args: vec![],
                 current_dir: None,
                 leak: false,
-                server_address: format!("grpc://[::1]:{DEFAULT_PORT}"),
+                server_address: format!("https://[::1]:{DEFAULT_PORT}"),
                 cert_dir: None,
             }),
         };
@@ -152,7 +152,7 @@ mod test {
                 args: ["-c".into(), "echo hello".into()].into(),
                 current_dir: None,
                 leak: true,
-                server_address: format!("grpc://[::1]:{}", DEFAULT_PORT),
+                server_address: format!("https://[::1]:{}", DEFAULT_PORT),
                 cert_dir: None,
             }),
         };
@@ -169,7 +169,7 @@ mod test {
                 args: ["script.py".into()].into(),
                 current_dir: None,
                 leak: false,
-                server_address: format!("grpc://[::1]:{}", DEFAULT_PORT),
+                server_address: format!("https://[::1]:{}", DEFAULT_PORT),
                 cert_dir: None,
             }),
         };
