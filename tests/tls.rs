@@ -1,9 +1,7 @@
 use std::{fs, net::IpAddr, thread, time::Duration};
 
 use exec_with_local_desktop::{
-    CA_CERT, CLIENT_CERT, CLIENT_SECRET, SERVER_CERT, SERVER_SECRET,
-    client::{ExecuteOptions, ExecutorClient},
-    config_dir,
+    CA_CERT, CLIENT_CERT, CLIENT_SECRET, SERVER_CERT, SERVER_SECRET, config_dir,
     exec::{
         Command, ExecuteRequestChunk, execute_client::ExecuteClient,
         execute_request_chunk::RequestChunk, execute_server::ExecuteServer,
@@ -15,7 +13,7 @@ use rcgen::{
     SerialNumber,
 };
 use time::OffsetDateTime;
-use tonic::transport::{Channel, Endpoint, Identity, Server, ServerTlsConfig};
+use tonic::transport::{Channel, Identity, Server, ServerTlsConfig};
 use tracing::{Level, info};
 
 #[test]
@@ -129,17 +127,20 @@ fn tls_server(ca: tonic::transport::Certificate) {
         .build()
         .unwrap();
     rt.block_on(async move {
-        Server::builder()
-            .tls_config(
-                ServerTlsConfig::new()
-                    .client_ca_root(ca)
-                    .identity(Identity::from_pem(server_cert, server_secret)),
-            )
-            .unwrap()
-            .add_service(ExecuteServer::new(Executor))
-            .serve(addr)
-            .await
-            .unwrap();
+        tokio::time::timeout(
+            Duration::from_secs(10),
+            Server::builder()
+                .tls_config(
+                    ServerTlsConfig::new()
+                        .client_ca_root(ca)
+                        .identity(Identity::from_pem(server_cert, server_secret)),
+                )
+                .unwrap()
+                .add_service(ExecuteServer::new(Executor))
+                .serve(addr),
+        )
+        .await
+        .unwrap_err();
     });
     info!("server ended");
 }
