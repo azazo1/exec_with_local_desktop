@@ -42,7 +42,7 @@ fn no_leak() {
             .unwrap();
         rt.block_on(async move {
             // 15 秒后退出.
-            tokio::time::timeout(Duration::from_secs(10), async move {
+            tokio::time::timeout(Duration::from_secs(15), async move {
                 Server::builder()
                     .add_service(ExecuteServer::new(Executor))
                     .serve(ADDR.parse().unwrap())
@@ -66,9 +66,10 @@ fn no_leak() {
             .unwrap();
         let filename = random_filename();
         let filename_ = filename.clone();
+        let timeout = 3;
         rt.block_on(async move {
             // 3 秒后退出
-            tokio::time::timeout(Duration::from_secs(3), async move {
+            tokio::time::timeout(Duration::from_secs(timeout), async move {
                 let mut client = ExecutorClient::connect(format!("grpc://{ADDR}"))
                     .await
                     .unwrap();
@@ -79,8 +80,8 @@ fn no_leak() {
                             .current_dir(Some(env::current_dir().unwrap().to_string_lossy().into()))
                             .args(vec![
                                 "-c".into(),
-                                // 第 5 秒删除文件.
-                                format!("touch {filename} && sleep 5 && rm {filename}"),
+                                // 第 7 秒删除文件.
+                                format!("touch {filename} && sleep 7 && rm {filename}"),
                             ])
                             .leak(false)
                             .build(),
@@ -93,8 +94,8 @@ fn no_leak() {
         rt.shutdown_background();
         info!("{:.2?} client runtime terminated", start_time.elapsed());
 
-        // 第 6 秒查看文件是否被删除.
-        thread::sleep(Duration::from_secs(2));
+        // 第 10 秒查看文件是否被删除.
+        thread::sleep(Duration::from_secs(10 - timeout));
         assert!(Path::new(&filename_).is_file());
         fs::remove_file(filename_).unwrap();
         info!("{:.2?} client deleted tmp file", start_time.elapsed());
