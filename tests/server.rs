@@ -81,7 +81,7 @@ fn no_leak() {
                             .args(vec![
                                 "-c".into(),
                                 // 第 7 秒删除文件.
-                                format!("touch {filename} && sleep 7 && rm {filename}"),
+                                format!("touch {filename} && sleep 7s && rm {filename}"),
                             ])
                             .leak(false)
                             .build(),
