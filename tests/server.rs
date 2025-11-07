@@ -79,8 +79,8 @@ fn no_leak() {
                             .current_dir(Some(env::current_dir().unwrap().to_string_lossy().into()))
                             .args(vec![
                                 "-c".into(),
-                                // 第 7 秒删除文件.
-                                format!("touch {filename} && sleep 4 && rm {filename}"),
+                                // 第 5 秒删除文件.
+                                format!("touch {filename} && sleep 5 && rm {filename}"),
                             ])
                             .leak(false)
                             .build(),
