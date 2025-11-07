@@ -103,9 +103,9 @@ impl ExecutorClient {
             }
         }
         Ok(ExecuteOutput {
-            code,
-            stderr,
             stdout,
+            stderr,
+            code,
         })
     }
 

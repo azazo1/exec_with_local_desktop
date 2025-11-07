@@ -10,7 +10,7 @@ use crate::args::ServerArgs;
 use crate::exec::execute_server::{Execute, ExecuteServer};
 use crate::exec::{ExecuteRequestChunk, ProgramOutput};
 use crate::server::executor::ProgramCaller;
-use crate::{CA_CERT, CLIENT_CERT, Error, config_dir};
+use crate::{CA_CERT, Error, config_dir};
 use crate::{SERVER_CERT, SERVER_SECRET, SendStatus as _};
 
 mod executor;
